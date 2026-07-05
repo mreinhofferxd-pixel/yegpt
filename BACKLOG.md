@@ -75,7 +75,7 @@ Ground rules for every task (from the launch spec):
       snapshot test against a tiny synthetic checkpoint capturing exact stdout text, plus
       invalid-argument validation. README rewrite happens later in unit 5, not here.
       [complex]
-- [ ] CORRECTIVE (the task above shipped only a subcommand dispatcher; the demo behavior
+- [x] CORRECTIVE (the task above shipped only a subcommand dispatcher; the demo behavior
       is missing): make bare `yegpt "some prompt"` work as the demo. In
       `src/yegpt/cli.py`, when the first positional arg is NOT a known subcommand, treat
       it as a prompt and stream the generation to the terminal character-by-character AS
