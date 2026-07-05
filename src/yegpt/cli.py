@@ -15,7 +15,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable
 
-from yegpt import __version__, data_prep, dedup, export, sample, train, tweet_prep
+from yegpt import __version__, data_prep, dedup, export, export_samples, sample, train, tweet_prep
 
 # Ordered to read roughly as the pipeline runs: build corpus -> train -> sample -> export.
 _COMMANDS: dict[str, Callable[[], None]] = {
@@ -25,6 +25,7 @@ _COMMANDS: dict[str, Callable[[], None]] = {
     "train": train.main,
     "sample": sample.main,
     "export": export.main,
+    "export-samples": export_samples.main,
 }
 
 

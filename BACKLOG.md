@@ -78,7 +78,7 @@ Ground rules for every task (from the launch spec):
 
 ## Unit 4: static website embed
 
-- [ ] Add `scripts/export_samples.py`: generate N short fragments (default 12 samples,
+- [x] Add `scripts/export_samples.py`: generate N short fragments (default 12 samples,
       ~200 chars each) from `checkpoints/run3/yegpt-ckpt.pt` with the recommended knobs,
       fully seeded and reproducible, with a `--profanity-filter/--no-profanity-filter`
       flag (default ON) that drops fragments containing words from a small built-in
