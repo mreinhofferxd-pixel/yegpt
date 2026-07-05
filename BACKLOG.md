@@ -12,6 +12,9 @@ Ground rules for every task (from the launch spec):
   generation) and are fine to commit.
 - No training reruns. The usable model is `checkpoints/run3/yegpt-ckpt.pt` (1.87M params,
   val ~1.59). If a task seems to need retraining, mark it blocked for the author instead.
+- CPU ONLY. The author is using the GPU; the loop must never run anything on CUDA. All
+  sampling, exports, and tests run on CPU (the project default). Never pass
+  `--device cuda`, never call `torch.cuda` APIs beyond what existing tests already do.
 - The loop never pushes, never runs `gh release`, never changes repo visibility.
   `scripts/publish_release.sh` is WRITTEN here, only the author runs it.
 - No em dashes in any Markdown doc; use plain hyphens or rewrite the sentence. No absolute
