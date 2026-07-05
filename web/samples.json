@@ -1,0 +1,25 @@
+{
+  "generated_with": {
+    "model": "checkpoints/run3/yegpt-ckpt.pt",
+    "seed": 1234,
+    "knobs": {
+      "temperature": 0.9,
+      "top_k": null,
+      "top_p": 0.92,
+      "repetition_penalty": 1.3,
+      "max_new_tokens": 200,
+      "num_samples": 7,
+      "prompt": "",
+      "profanity_filter": true
+    }
+  },
+  "samples": [
+    "then welcome, get up\nPablin' through up in the phi-town (Black)\nThey don't know I stop it\nBlazin' if I, I know it's just crack my mouthside\nAnd I still black my jackets decip\nWhy you got mean get she ",
+    "I can't study whatever. So, myself with me\nI'm so purchase I'm cold. And when I'm gonna make no let me hate me nobody. Russell\nWhere I prefect, it's control a problem show some Mob's about killional M",
+    "Sing all be homies, graduatest from y'all skinned by the phone\nBlackwo, I be them public and I'm talking my life\nWho I'm not definitely tryna get my way in experience?\"\nCause when the pass we get over",
+    "I guess why don't afficial\nBaby, man her his hood? That's why is sight?\nLike \"Why?\"\nYou was livin' a mixedible to champion?\nShe half in we just to came off the bad\nBut you brought to text a miss my st",
+    "\nIf you was great, he's getting me graduate\nYour key your last and so keep on your heavy realth?\nFound at leave even of that's not excited that, me and people's rid\nGoodbye, I'll just gonna make me, m",
+    "I don't, get the time, yeah\nAfter up in the sky\nNow this put my children down, down\nWe believe is down, down your lost bettersweet\n\nSing, right now\nOh, right now\n\nYou can't even were for me, where it?",
+    "Memories what's my life, I ain't but I'm gonna be give her?\nSo say, \"Damn damn!\"\nYou know I'm couldn't really give that God and the malport\nTell they want to put your ass you, when you girls care you'"
+  ]
+}

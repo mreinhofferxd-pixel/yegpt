@@ -1,26 +1,30 @@
-"""export_samples: dump a batch of short generated fragments from a checkpoint (Unit 2).
+"""export_samples: dump a batch of short generated fragments from a checkpoint (Unit 4).
 
-A companion to `sample.py` for the release: where `sample` streams one long generation to watch
-the style, this writes a *set* of short, independent fragments to a file -- the kind of showcase
-you paste into a model card or README. It is pure orchestration in the same spirit as `export.py`
-and reuses the checkpoint contract rather than forking it:
+Companion to `sample.py` for the public launch: where `sample` streams one long generation to
+watch the style, this writes a *set* of short, independent fragments to `web/samples.json` -- the
+showcase the static web embed replays. It is pure orchestration over the checkpoint contract and
+reuses the sampler rather than forking it:
 
     train.load_checkpoint(path) -> Checkpoint
-    generate_samples(...)       -> [sample.sample_from_checkpoint(...) for each fragment]
-    write the numbered fragments to disk
+    generate_samples(...)       -> [sample.sample_from_checkpoint(...) per fragment]
+    filter_profanity(...)       -> drop fragments containing built-in wordlist terms
+    build_document(...)         -> {"generated_with": {model, seed, knobs}, "samples": [...]}
 
-Each fragment is produced by delegating to `sample.sample_from_checkpoint`, so the model
-reconstruction, prompt-prefix invariant, and sampling knobs all stay owned by `sample.py`; this
-module only loops, seeds per fragment for reproducible-yet-varied output, and formats the result.
+Model reconstruction, the prompt-prefix invariant, and sampling knobs all stay owned by
+`sample.py`; this module only loops, seeds per fragment for reproducible-yet-varied output,
+optionally screens profanity, and serialises the batch as JSON.
 
-Honest scope (SPEC.md §0): a checkpoint from a tiny / under-trained run samples near-noise. These
-fragments read as noise -> word-shaped -> recognizably-Kanye-styled gibberish as training
-improves; this is the harness for collecting them, not a path to coherent lyrics.
+These fragments are model OUTPUT (parody generation), so `web/samples.json` is safe to commit even
+though the raw corpus never is (BACKLOG ground rules). Honest scope (SPEC.md 0): a small model
+samples near-noise, so the fragments read as gibberish; this is the harness for collecting and
+shipping them, not a path to coherent lyrics.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -31,18 +35,44 @@ from yegpt.sample import sample_from_checkpoint
 from yegpt.train import DEFAULT_CHECKPOINT_PATH, Checkpoint, load_checkpoint
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-# A build output, like the fp16 export: `dist/` is gitignored, so this file is never committed.
-DEFAULT_SAMPLES_PATH: Final[Path] = _REPO_ROOT / "dist" / "yegpt-samples.txt"
+# Committed showcase output (parody fragments), not raw lyrics -- safe to ship.
+DEFAULT_SAMPLES_PATH: Final[Path] = _REPO_ROOT / "web" / "samples.json"
 
-# Twelve fragments is enough to show range without becoming a wall of text; each is kept short so
-# the batch reads as a set of snippets, not one long dump (that is what `sample.py` is for).
+# Twelve fragments show range without becoming a wall of text; ~200 chars each keeps each one a
+# snippet, not one long dump (that is what `sample.py` is for).
 _DEFAULT_NUM_SAMPLES: Final[int] = 12
-_DEFAULT_FRAGMENT_TOKENS: Final[int] = 120
+_DEFAULT_FRAGMENT_TOKENS: Final[int] = 200
+
+# Recommended sampling knobs (MODEL_CARD.md): sharpen a touch, nucleus-clip the tail, and penalise
+# repeats so the fragments do not collapse into a single looped character.
+_DEFAULT_TEMPERATURE: Final[float] = 0.9
+_DEFAULT_TOP_P: Final[float] = 0.92
+_DEFAULT_REPETITION_PENALTY: Final[float] = 1.3
+# Fixed, documented base seed so the committed artifact reproduces byte-for-byte.
+_DEFAULT_SEED: Final[int] = 1234
+
+# Small built-in screen: a fragment containing any of these as a whole word is dropped when the
+# profanity filter is on (case-insensitive, word-boundary). A profanity filter has to name the
+# words it blocks; this is the entire list.
+_PROFANITY_WORDLIST: Final[frozenset[str]] = frozenset(
+    {
+        "fuck",
+        "shit",
+        "bitch",
+        "cunt",
+        "pussy",
+        "dick",
+        "cock",
+        "faggot",
+        "nigga",
+        "nigger",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
 class SampleExportResult:
-    """Where the fragments were written and how many/how large the file is."""
+    """Where the fragments were written and how many survived the filter / how large the file is."""
 
     dest_path: Path
     num_samples: int
@@ -97,10 +127,71 @@ def generate_samples(
     return samples
 
 
-def format_samples(samples: list[str]) -> str:
-    """Render fragments as numbered blocks separated by blank lines, with a trailing newline."""
-    blocks = [f"--- sample {index} ---\n{text}" for index, text in enumerate(samples, start=1)]
-    return "\n\n".join(blocks) + "\n"
+# Common inflectional endings appended to a base term (fuck -> fucking/fucked/fucks). Matching
+# base + optional-suffix + word boundary catches these while sparing clean words that merely start
+# with a base term (dickens, cocktail), which a bare prefix match would wrongly flag.
+_INFLECTION: Final[str] = r"(?:s|es|ed|ing|in|er|ers|y)?"
+
+
+def contains_profanity(text: str, wordlist: frozenset[str] = _PROFANITY_WORDLIST) -> bool:
+    """True if `text` contains any wordlist term (or a common inflection of it) as a whole word.
+
+    Case-insensitive and word-boundary anchored: `shit` matches `shit`/`shits`/`shitting` but not
+    `shirt`, and `dick` does not trip on `dickens`.
+    """
+    lowered = text.lower()
+    return any(
+        re.search(rf"\b{re.escape(word)}{_INFLECTION}\b", lowered) is not None for word in wordlist
+    )
+
+
+def filter_profanity(
+    samples: list[str], wordlist: frozenset[str] = _PROFANITY_WORDLIST
+) -> list[str]:
+    """Drop fragments containing a wordlist term; the survivors keep their original order."""
+    return [text for text in samples if not contains_profanity(text, wordlist)]
+
+
+def build_document(
+    samples: list[str],
+    *,
+    model: str,
+    seed: int | None,
+    temperature: float,
+    top_k: int | None,
+    top_p: float | None,
+    repetition_penalty: float,
+    max_new_tokens: int,
+    prompt: str,
+    profanity_filter: bool,
+) -> dict[str, object]:
+    """Assemble the `{generated_with, samples}` document written to `web/samples.json`.
+
+    `generated_with` records exactly what a reader needs to regenerate the batch: the source model,
+    the base seed, and the sampling knobs (including the post-filter fragment count).
+    """
+    return {
+        "generated_with": {
+            "model": model,
+            "seed": seed,
+            "knobs": {
+                "temperature": temperature,
+                "top_k": top_k,
+                "top_p": top_p,
+                "repetition_penalty": repetition_penalty,
+                "max_new_tokens": max_new_tokens,
+                "num_samples": len(samples),
+                "prompt": prompt,
+                "profanity_filter": profanity_filter,
+            },
+        },
+        "samples": samples,
+    }
+
+
+def _render_json(document: dict[str, object]) -> str:
+    """Serialise the document as pretty JSON with a trailing newline (stable across runs)."""
+    return json.dumps(document, indent=2, ensure_ascii=False) + "\n"
 
 
 def export_samples(
@@ -111,23 +202,28 @@ def export_samples(
     max_new_tokens: int = _DEFAULT_FRAGMENT_TOKENS,
     prompt: str = "",
     device: torch.device | None = None,
-    seed: int | None = None,
-    temperature: float = 1.0,
+    seed: int | None = _DEFAULT_SEED,
+    temperature: float = _DEFAULT_TEMPERATURE,
     top_k: int | None = None,
-    top_p: float | None = None,
-    repetition_penalty: float = 1.0,
+    top_p: float | None = _DEFAULT_TOP_P,
+    repetition_penalty: float = _DEFAULT_REPETITION_PENALTY,
+    profanity_filter: bool = True,
+    model_name: str | None = None,
 ) -> SampleExportResult:
-    """Load a checkpoint off disk, generate the fragments, and write them to `dest_path`.
+    """Load a checkpoint off disk, generate the fragments, optionally filter, and write JSON.
 
     Device defaults to CPU for the same reasons as `sample.generate_text`: sampling a handful of
     short fragments is cheap and serial, it keeps callers CUDA-free, and it avoids honoring a
-    checkpoint whose `config.device` reads "cuda" on a GPU-less box. Missing parent directories of
-    `dest_path` are created. Returns the destination path, the fragment count, and the file size.
+    checkpoint whose `config.device` reads "cuda" on a GPU-less box. When `profanity_filter` is on
+    (the default), fragments hitting the built-in wordlist are dropped before serialisation, so the
+    committed count can be below `num_samples`. `model_name` labels the artifact; it defaults to the
+    checkpoint path as a POSIX string so no absolute Windows path leaks in. Missing parents of
+    `dest_path` are created. Returns the destination, the surviving fragment count, and the size.
     """
     ckpt = load_checkpoint(checkpoint_path)  # loads to CPU; the sampler moves the model as needed
     target_device = device if device is not None else torch.device("cpu")
 
-    samples = generate_samples(
+    generated = generate_samples(
         ckpt,
         num_samples=num_samples,
         max_new_tokens=max_new_tokens,
@@ -139,20 +235,34 @@ def export_samples(
         top_p=top_p,
         repetition_penalty=repetition_penalty,
     )
+    kept = filter_profanity(generated) if profanity_filter else generated
+
+    document = build_document(
+        kept,
+        model=model_name if model_name is not None else checkpoint_path.as_posix(),
+        seed=seed,
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
+        repetition_penalty=repetition_penalty,
+        max_new_tokens=max_new_tokens,
+        prompt=prompt,
+        profanity_filter=profanity_filter,
+    )
 
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    dest_path.write_text(format_samples(samples), encoding="utf-8")
+    dest_path.write_text(_render_json(document), encoding="utf-8")
 
     return SampleExportResult(
         dest_path=dest_path,
-        num_samples=len(samples),
+        num_samples=len(kept),
         dest_bytes=dest_path.stat().st_size,
     )
 
 
 def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is what the tests drive
     parser = argparse.ArgumentParser(
-        description="Export a batch of short sample fragments from a yeGPT checkpoint."
+        description="Export a batch of short parody fragments from a yeGPT checkpoint to JSON."
     )
     parser.add_argument(
         "--checkpoint", type=Path, default=DEFAULT_CHECKPOINT_PATH,
@@ -160,7 +270,7 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is wh
     )
     parser.add_argument(
         "--out", type=Path, default=DEFAULT_SAMPLES_PATH,
-        help="Destination text file for the fragments.",
+        help="Destination JSON file for the fragments (default: web/samples.json).",
     )
     parser.add_argument(
         "-n", "--num-samples", type=int, default=_DEFAULT_NUM_SAMPLES,
@@ -175,7 +285,7 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is wh
         help="Seed text each fragment is conditioned on (default: empty -> primed start).",
     )
     parser.add_argument(
-        "--seed", type=int, default=None,
+        "--seed", type=int, default=_DEFAULT_SEED,
         help="Base RNG seed; fragment i uses seed+i for reproducible-yet-varied output.",
     )
     parser.add_argument(
@@ -183,20 +293,24 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is wh
         help="Torch device, e.g. 'cpu' or 'cuda' (default: cpu).",
     )
     parser.add_argument(
-        "--temperature", type=float, default=1.0,
-        help="Softmax temperature (>0): <1 sharpens, >1 flattens (default: 1.0).",
+        "--temperature", type=float, default=_DEFAULT_TEMPERATURE,
+        help="Softmax temperature (>0): <1 sharpens, >1 flattens (default: 0.9).",
     )
     parser.add_argument(
         "--top-k", type=int, default=None,
         help="Sample only from the K most likely characters each step (default: full vocab).",
     )
     parser.add_argument(
-        "--top-p", type=float, default=None,
-        help="Nucleus sampling: keep the top chars summing to P probability (default: off).",
+        "--top-p", type=float, default=_DEFAULT_TOP_P,
+        help="Nucleus sampling: keep the top chars summing to P probability (default: 0.92).",
     )
     parser.add_argument(
-        "--repetition-penalty", type=float, default=1.0,
-        help="Down-weight already-seen chars to break loops (>0, 1.0=off; try ~1.2).",
+        "--repetition-penalty", type=float, default=_DEFAULT_REPETITION_PENALTY,
+        help="Down-weight already-seen chars to break loops (>0, 1.0=off; default: 1.3).",
+    )
+    parser.add_argument(
+        "--profanity-filter", action=argparse.BooleanOptionalAction, default=True,
+        help="Drop fragments containing built-in profanity (default: on).",
     )
     args = parser.parse_args()
 
@@ -206,12 +320,13 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is wh
     num_samples: int = args.num_samples
     num_tokens: int = args.num_tokens
     prompt: str = args.prompt
-    seed: int | None = args.seed
+    seed: int = args.seed
     device_str: str | None = args.device
     temperature: float = args.temperature
     top_k: int | None = args.top_k
     top_p: float | None = args.top_p
     repetition_penalty: float = args.repetition_penalty
+    profanity_filter: bool = args.profanity_filter
     device = torch.device(device_str) if device_str is not None else None
 
     result = export_samples(
@@ -226,6 +341,7 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; the core above is wh
         top_k=top_k,
         top_p=top_p,
         repetition_penalty=repetition_penalty,
+        profanity_filter=profanity_filter,
     )
     print(
         f"wrote {result.num_samples} fragment(s) to {result.dest_path} "

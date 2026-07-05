@@ -100,7 +100,7 @@ Ground rules for every task (from the launch spec):
       planted profane fragment, output parses as valid JSON with the documented shape.
       Then run it for real (run3, filter ON) and COMMIT the resulting `web/samples.json`.
       [complex]
-- [ ] CORRECTIVE (the task above landed code + tests but never produced the artifact):
+- [x] CORRECTIVE (the task above landed code + tests but never produced the artifact):
       actually run the exporter against the real checkpoint and COMMIT the result. Run
       `scripts/export_samples.py` with `checkpoints/run3/yegpt-ckpt.pt`, profanity filter
       ON, a fixed documented seed, on CPU; commit the generated `web/samples.json` (verify
