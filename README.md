@@ -1,36 +1,87 @@
+<div align="center">
+
 # yeGPT
 
-A character-level GPT, **written by hand from scratch**, trained on a Kanye West corpus
-(lyrics + interview/rant transcripts + tweets) on a single RTX 4080.
+**A character-level GPT, written by hand from scratch, trained on a Kanye West corpus.**
 
-This is a **learning project**. The point is to understand how a decoder-only transformer
-actually works — tokenizer, attention, transformer blocks, training loop — by building one
-line-by-line. No `nn.Transformer`, no `nn.MultiheadAttention`, no HuggingFace model classes,
-no pretrained weights. PyTorch is used only for tensors/autograd/optim.
+Lyrics + interview/rant transcripts + tweets, on a single RTX 4080.
 
-> **Honest expectation (and the actual result).** At this scale (~1.9–3.3M params) on a
-> ~0.67MB corpus, the model produces *recognizably Kanye-styled gibberish* — word-shaped,
-> line-shaped, clearly "trying," and leaning on **memorized fragments** of the training text.
-> That is the success criterion. It does **not** write coherent lyrics, and it can't: there
-> isn't enough data. No RL is involved (GRPO/DPO/PPO are a deliberately separate future
-> project — see [SPEC.md](SPEC.md) §7).
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.5-ee4c2c.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Linting: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
+[![Types: mypy strict](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
+[![Built from scratch](https://img.shields.io/badge/built-from%20scratch-orange.svg)](#what-i-learned)
+
+[Quickstart](#quickstart) · [Run the pipeline](#run-the-pipeline) · [Results](#results-real-samples) · [What I learned](#what-i-learned) · [SPEC](SPEC.md) · [Model card](MODEL_CARD.md)
+
+</div>
+
+---
+
+## What this is
+
+A decoder-only transformer built line-by-line to understand how one actually works — tokenizer,
+attention, transformer blocks, training loop. **No** `nn.Transformer`, **no**
+`nn.MultiheadAttention`, **no** HuggingFace model classes, **no** pretrained weights. PyTorch is
+used only for tensors/autograd/optim; everything model-shaped is assembled by hand in
+[model.py](src/yegpt/model.py).
+
+This is a **learning project**, and its honest result is the deliverable:
+
+> At this scale (~1.9–10.9M params) on a ~0.67MB corpus, the model produces *recognizably
+> Kanye-styled gibberish* — word-shaped, line-shaped, clearly "trying," and leaning on
+> **memorized fragments** of the training text. That is the success criterion. It does **not**
+> write coherent lyrics, and it can't: there isn't enough data. No RL is involved (GRPO/DPO/PPO
+> are a deliberately separate future project — see [SPEC.md](SPEC.md) §7).
 
 See [SPEC.md](SPEC.md) for the full design, constraints, and ticket plan.
 
-## Status
+## Quickstart
 
-- [x] TICKET-01 — Project scaffold
-- [x] TICKET-02 — `config.py` (`TrainConfig`)
-- [x] TICKET-03 — `data_prep.py`
-- [x] TICKET-04 — `tokenizer.py`
-- [x] TICKET-05 — `dataset.py`
-- [x] TICKET-06 — `model.py` (the hand-written GPT)
-- [x] TICKET-07 — `train.py` (loop + checkpoint + CLI)
-- [x] TICKET-08 — `sample.py`
-- [x] TICKET-09 — First real training run + iterate
-- [x] TICKET-10 — Scale & ablate (stretch): loop throughput/VRAM instrumentation + scale/context ablation done; BPE tokenization contrast left as future work (see below)
+Requires Python **3.11 or 3.12** (PyTorch wheels; 3.13/3.14 not yet supported here) and an
+existing CUDA-capable `torch` install for training.
 
-## Run it
+```sh
+# Isolated env that reuses the already-installed CUDA torch, plus the dev tools.
+py -3.12 -m venv --system-site-packages .venv
+.venv/Scripts/python -m pip install -e ".[dev]"
+
+# Sanity checks (the quality gate)
+.venv/Scripts/python -m ruff check .
+.venv/Scripts/python -m mypy
+.venv/Scripts/python -m pytest
+```
+
+Installing the package wires a single `yegpt` console entry point ([cli.py](src/yegpt/cli.py)).
+It has two modes:
+
+```sh
+# Subcommand mode — routes to a pipeline module's own CLI:
+yegpt data-prep | tweet-prep | dedup | train | sample | export | export-samples
+yegpt sample --help        # shows sample.py's own flags
+
+# Prompt mode — anything that is NOT a subcommand is treated as a seed and
+# typewriter-streamed to stdout, one character per sampled token (CPU only):
+yegpt "I'm the greatest" --max-chars 200 --seed 1337
+```
+
+## Demo
+
+`web/` holds a zero-dependency static embed that **replays pregenerated parody fragments** with a
+typewriter effect — nothing runs live in the browser. The fragments in
+[web/samples.json](web/samples.json) are model *output* (safe to commit; the raw corpus is not),
+emitted by `yegpt export-samples` from the released run3 checkpoint with the model-card knobs.
+
+```sh
+# Regenerate the showcase JSON from a checkpoint (profanity-screened by default):
+yegpt export-samples --checkpoint checkpoints/run3/yegpt-ckpt.pt
+
+# View it: serve web/ and open demo.html
+python -m http.server -d web 8000   # then browse http://localhost:8000/demo.html
+```
+
+## Run the pipeline
 
 The full pipeline is four steps: build the corpus, dedup it, train, sample.
 
@@ -69,7 +120,7 @@ before/after below were produced.
 
 Each run writes **two** checkpoints to its `--out-dir`: `yegpt-ckpt.pt` (the final-step weights)
 and `yegpt-best.pt` (the lowest-val snapshot). Point `--checkpoint` at either. On an overfitting
-run they differ — and the best is the one you actually want (see *what I learned*, below).
+run they differ — and the best is the one you actually want (see [What I learned](#what-i-learned)).
 
 > **Windows console note.** A *near-init* model samples roughly uniformly over the whole vocab,
 > including characters the default Windows console code page (cp1252) can't print, so piping
@@ -77,15 +128,19 @@ run they differ — and the best is the one you actually want (see *what I learn
 > UTF-8 file) when sampling untrained checkpoints. Trained checkpoints emit common characters
 > and print fine.
 
-## Before / after (real samples)
+## Results (real samples)
 
 Both are verbatim from actual checkpoints, same prompt (empty) and seed (`1337`), `n=500`.
 "Before" is the **same 192-wide architecture at step 0** (random init, before any optimizer
 step); "after" is the same model after 5000 steps.
 
-**Before — random init (step 0), train/val ≈ 4.63/4.62:** character noise — no words, no word
-boundaries, rare Unicode. The loss sits right at ≈ `ln(104)` = 4.64, i.e. a *roughly uniform*
-draw over the 104-char vocab: the model knows nothing yet.
+<table>
+<tr><th>Before — random init (step 0)</th><th>After — 5000 steps (run3)</th></tr>
+<tr><td valign="top">
+
+train/val ≈ 4.63/4.62 — character noise, no words, no word boundaries, rare Unicode. The loss
+sits right at ≈ `ln(104)` = 4.64, a *roughly uniform* draw over the 104-char vocab: the model
+knows nothing yet.
 
 ```
 5í3ZSJ2B~öOX_oq#QCA.c+tftlāKntnÁŐ*EÁ+6 f2:,QÉ;mv
@@ -95,9 +150,10 @@ Cwz/éVñL+jō,ā:Qjúw!LöqIró?M<ŐfPñ%'|r:2D
 Bn+ÉC)c )fY⁠Nat:ā.N3GQ]R&oq Q&ŐaZó-i
 ```
 
-**After — 5000 steps (run3), train/val ≈ 1.14/1.59:** word-shaped, line-shaped, recognizably
-the voice (cadence, slang, `Roc-A-Fella`, `Rollie`). Still gibberish — the *grammar of Kanye*
-without the meaning.
+</td><td valign="top">
+
+train/val ≈ 1.14/1.59 — word-shaped, line-shaped, recognizably the voice (cadence, slang,
+`Roc-A-Fella`, `Rollie`). Still gibberish — the *grammar of Kanye* without the meaning.
 
 ```
 we gonna did in here we to
@@ -110,12 +166,12 @@ Ridiculous, and hold over hold your apprice?
 Rollie's a grab my jor, dad, that's a Thurs arm
 
 And I know I know the Roc-A-Fella, King's in the Hotny
-I know I still like them your ass, I'm slow high her
-High, hands up, hands on the first in this the cide
-We ain't take my mind
 ```
 
-## TICKET-09: what the runs showed
+</td></tr>
+</table>
+
+### TICKET-09: what the runs showed
 
 Three runs on the deduped 0.67MB corpus (vocab 104), each to its own `--out-dir`, 5000 steps,
 batch 64, lr 3e-4, block_size 256, on the 4080 (bf16 autocast, minutes per run):
@@ -130,7 +186,7 @@ batch 64, lr 3e-4, block_size 256, on the 4080 (bf16 autocast, minutes per run):
 memorizes harder. Both more dropout and less capacity remove the divergence; the smaller model
 reaches the lowest val at the lowest cost.
 
-## TICKET-10: scale & ablate — does a bigger model help?
+### TICKET-10: scale & ablate — does a bigger model help?
 
 Short answer: **no, not on this data.** TICKET-09 suspected the ~1.58 val floor was set by the
 0.67MB corpus, not the model size. TICKET-10 tests that head-on: hold the corpus and the training
@@ -157,51 +213,30 @@ the 4080 cap out?"
 
 Three things to read off it:
 
-**1. Best val is flat — the data wall is real.** Across a 5.8× parameter range (1.9M → 10.9M) and
-a 2× context increase, best validation loss moves only between 1.563 and 1.599 — that's noise.
-Adding capacity does not lower the floor. (long-ctx nudges lowest at 1.563, but it's within the
-wobble and it paid ~8× the wall-clock for it.) The floor is set by the 0.67MB of text, full stop.
+1. **Best val is flat — the data wall is real.** Across a 5.8× parameter range (1.9M → 10.9M) and
+   a 2× context increase, best validation loss moves only between 1.563 and 1.599 — that's noise.
+   Adding capacity does not lower the floor. The floor is set by the 0.67MB of text, full stop.
+2. **Scale buys memorization, not generalization.** Final *train* loss collapses monotonically
+   with size — 1.14 → 0.60 → 0.23 → **0.08** — while final *val* gets steadily *worse* — 1.59 →
+   1.84 → 2.32 → **2.86**. The big models don't learn the language better; they memorize the
+   training split harder, and start overfitting *earlier* (best-val at step 4250 for baseline vs
+   step **1500** for long-ctx). This is exactly why the loop keeps a **best-val** checkpoint.
+3. **On the 4080, the cap is time and context — not VRAM.** Even the largest run peaks at **9.45
+   GiB of 16** — parameters are cheap for a char model. What caps out is **wall-clock per
+   checkpoint**: doubling context 256 → 512 is O(T²) in attention and drops throughput from 553k
+   to 133k tokens/s, turning a 2.5-minute run into a 20.5-minute one. The practical ceiling on
+   this box is **~512 context at batch 64**, and it's a *time* ceiling well before it's a memory one.
 
-**2. Scale buys memorization, not generalization.** Final *train* loss collapses monotonically
-with size — 1.14 → 0.60 → 0.23 → **0.08** — while final *val* gets steadily *worse* — 1.59 → 1.84
-→ 2.32 → **2.86**. The big models don't learn the language better; they memorize the training split
-harder. They also start overfitting *earlier*: best-val lands at step 4250 for baseline but step
-**1500** for long-ctx, so most of a large model's budget is spent digging into memorization. (This
-is exactly why the loop keeps a **best-val** checkpoint — long-ctx's *final* checkpoint is val 2.86,
-nearly worthless, while its *best* is 1.56.)
-
-**3. On the 4080, the cap is time and context — not VRAM.** Even the largest run peaks at **9.45 GiB
-of 16** — parameters are cheap for a char model. What caps out is **wall-clock per checkpoint**:
-doubling context 256 → 512 is O(T²) in attention and drops throughput from 553k to 133k tokens/s,
-turning a 2.5-minute run into a 20.5-minute one. Pushing context to 1024 (batch 64) blows past 16 GiB
-and thrashes into system RAM. So on this box the practical ceiling is **~512 context at batch 64**,
-and it's a *time* ceiling well before it's a memory one.
-
-Sampling each run's **best-val** checkpoint (`--temperature 0.8 --seed 1337`) confirms the headline:
-**coherence does not improve with scale.** All four sit at ~1.57–1.60 val and read as the same
-recognizable gibberish — bigger just memorizes more of the corpus verbatim.
-
-```
-baseline (1.9M):   we gone would never come like now. I don't know what if you would you
-                   could have a beautiful sometimes all / I am times and I'm the fighting shit
-
-long-ctx (11M,2x): when Jesus? Jesus, picture / Yeah, Yeezy just know / I ain't look at the
-                   hustless, throw the hustles / I'm on my toast in my hustless, they just...
-```
-
-**What I learned about scaling.** At fixed (small) data, adding parameters or context lowers
-*training* loss but not *validation* loss — the extra capacity goes into memorizing, not
-generalizing. The lever for better generalization is **more data, not a bigger model**; on a 0.67MB
-corpus you hit that wall at ~1.9M params and everything past it is memorization you have to
-checkpoint around. And for a char-level nanoGPT on a 16GB 4080, the binding hardware constraint
-isn't parameter memory — it's **time per checkpoint**, set by context length (O(T²) attention).
+Sampling each run's **best-val** checkpoint (`--temperature 0.8 --seed 1337`) confirms the
+headline: **coherence does not improve with scale.** All four sit at ~1.57–1.60 val and read as
+the same recognizable gibberish — bigger just memorizes more of the corpus verbatim.
 
 **Tokenization (10.2) — skipped, on purpose.** The one lever that could actually change the
 coherence-per-parameter tradeoff is tokenization: a BPE/word tokenizer packs more characters into
 each token, so a fixed context spans more text and every token carries more meaning. That's the
 genuinely interesting ablation — but it's a substantial from-scratch build (learn merges from the
-corpus, a new hand-written `encode`/`decode`, its own tests; no `tokenizers`/`tiktoken`, that would
-break the from-scratch rule), and it would not change the core finding that *this* corpus is
+corpus, a new hand-written `encode`/`decode`, its own tests; no `tokenizers`/`tiktoken`, that
+would break the from-scratch rule), and it would not change the core finding that *this* corpus is
 data-bound. Left as future work.
 
 ## What I learned
@@ -295,27 +330,18 @@ lyrics — and that is the intended end state, not a bug to fix. Coherent genera
 much more data and scale (and, as a *separate* project, RL on top). None of that is in scope
 here.
 
-## Development setup
-
-Requires Python **3.11 or 3.12** (PyTorch wheels; 3.13/3.14 not yet supported here) and an
-existing CUDA-capable `torch` install for training.
-
-```sh
-# Create an isolated env that reuses the already-installed CUDA torch.
-py -3.12 -m venv --system-site-packages .venv
-.venv/Scripts/python -m pip install -e ".[dev]"
-
-# Sanity checks
-.venv/Scripts/python -m pytest
-.venv/Scripts/python -m ruff check .
-.venv/Scripts/python -m mypy
-```
-
 ## Layout
 
 ```
 src/yegpt/   # the model and pipeline, written by hand
 tests/       # pytest suite
+web/         # static embed that replays pregenerated parody samples
 data/raw/    # author drops source .txt here (gitignored)
 checkpoints/ # saved model weights (gitignored)
 ```
+
+## License
+
+Source code is [MIT](LICENSE). The license covers the code only — **not** the training corpus,
+raw source text, or model weights, which are not distributed under it (see
+[MODEL_CARD.md](MODEL_CARD.md)).
