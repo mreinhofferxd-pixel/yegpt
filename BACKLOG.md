@@ -35,7 +35,7 @@ Ground rules for every task (from the launch spec):
 
 ## Unit 2: distributable checkpoint + model card
 
-- [ ] Add `scripts/export_checkpoint.py`: load a training checkpoint (default
+- [x] Add `scripts/export_checkpoint.py`: load a training checkpoint (default
       `checkpoints/run3/yegpt-ckpt.pt`) via `train.load_checkpoint`, cast the model weights
       to fp16, and save `dist/yegpt-small-fp16.pt` in the SAME `Checkpoint` format (reuse
       `train.save_checkpoint`; do not fork the format), printing before/after file sizes.
