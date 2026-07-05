@@ -75,6 +75,18 @@ Ground rules for every task (from the launch spec):
       snapshot test against a tiny synthetic checkpoint capturing exact stdout text, plus
       invalid-argument validation. README rewrite happens later in unit 5, not here.
       [complex]
+- [ ] CORRECTIVE (the task above shipped only a subcommand dispatcher; the demo behavior
+      is missing): make bare `yegpt "some prompt"` work as the demo. In
+      `src/yegpt/cli.py`, when the first positional arg is NOT a known subcommand, treat
+      it as a prompt and stream the generation to the terminal character-by-character AS
+      TOKENS ARE SAMPLED: use `GPT.generate_stream` and print each decoded char with
+      `print(ch, end="", flush=True)`. Honor `--checkpoint` (default
+      `checkpoints/run3/yegpt-ckpt.pt`), `--temperature`, `--top-k`, `--top-p`,
+      `--repetition-penalty`, `--max-chars` (maps to `max_new_tokens`), `--seed`; defaults
+      = the recommended knobs; CPU only. Do NOT route through `sample.main` (it prints
+      only at the end); keep existing subcommand dispatch working. Tests: seeded snapshot
+      test against a tiny synthetic checkpoint asserting EXACT stdout via capsys; a test
+      that subcommand dispatch still routes; invalid knob values exit non-zero. [complex]
 
 ## Unit 4: static website embed
 
@@ -88,6 +100,12 @@ Ground rules for every task (from the launch spec):
       planted profane fragment, output parses as valid JSON with the documented shape.
       Then run it for real (run3, filter ON) and COMMIT the resulting `web/samples.json`.
       [complex]
+- [ ] CORRECTIVE (the task above landed code + tests but never produced the artifact):
+      actually run the exporter against the real checkpoint and COMMIT the result. Run
+      `scripts/export_samples.py` with `checkpoints/run3/yegpt-ckpt.pt`, profanity filter
+      ON, a fixed documented seed, on CPU; commit the generated `web/samples.json` (verify
+      it parses as JSON, has the documented `generated_with` + `samples` shape, and
+      contains no raw-corpus dumps, only short generated fragments). [simple]
 - [ ] Add `web/embed.js` plus a minimal `web/demo.html` for manual checking: embed.js is
       self-contained vanilla JS (no dependencies, no backend, no build step) exposing a
       global `yegptEmbed(containerElement, samplesUrl)` that fetches `samples.json` and
