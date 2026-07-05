@@ -43,7 +43,7 @@ Ground rules for every task (from the launch spec):
       loads via `train.load_checkpoint` and samples via `sample.sample_from_checkpoint`
       (fp16 state dict copies into fp32 params), and the exported file is smaller.
       [complex]
-- [ ] Write `MODEL_CARD.md`: parameter count (1.87M), architecture table (4 layers, 4
+- [x] Write `MODEL_CARD.md`: parameter count (1.87M), architecture table (4 layers, 4
       heads, 192 embd, context 256, vocab 104, char-level, hand-written attention),
       training data description (lyrics + tweets sources, 0.67MB after dedup, corpus NOT
       distributed), eval metrics taken from the README ablation table (best val loss
