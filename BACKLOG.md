@@ -53,7 +53,7 @@ Ground rules for every task (from the launch spec):
       a clear "AI-generated parody / educational project, not affiliated with or endorsed
       by Kanye West" note, and a weights note (weights released for research/parody use,
       separate from the MIT code license). No em dashes. [simple]
-- [ ] Add `scripts/publish_release.sh`: `gh release create` (tag `v0.1.0`) uploading
+- [x] Add `scripts/publish_release.sh`: `gh release create` (tag `v0.1.0`) uploading
       `dist/yegpt-small-fp16.pt` and `MODEL_CARD.md`, `set -euo pipefail`, exits with a
       clear error if the artifact is missing. The loop must NEVER execute it (author-run
       only; say so in a header comment). Acceptance: `bash -n scripts/publish_release.sh`
