@@ -67,7 +67,7 @@ Ground rules for every task (from the launch spec):
       seeded generator); share the per-step sampling logic with `generate` rather than
       duplicating it. Tests: with the same seed, the collected stream equals `generate`
       output token-for-token; invalid knob values raise the same errors. [complex]
-- [ ] Add `src/yegpt/cli.py` and a `[project.scripts]` entry `yegpt = "yegpt.cli:main"`:
+- [x] Add `src/yegpt/cli.py` and a `[project.scripts]` entry `yegpt = "yegpt.cli:main"`:
       `yegpt "prompt" --checkpoint --temperature --top-k --top-p --repetition-penalty
       --max-chars --seed`, decoding and printing each character as it is sampled
       (typewriter streaming: per-char print with flush, CPU by default, defaults matching

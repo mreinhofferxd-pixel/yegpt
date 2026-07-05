@@ -16,6 +16,9 @@ dependencies = [
     "torch>=2.5,<3",
 ]
 
+[project.scripts]
+yegpt = "yegpt.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
