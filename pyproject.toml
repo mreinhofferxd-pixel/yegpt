@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yegpt"
+version = "0.0.1"
+description = "A character-level GPT trained from scratch on a Kanye West corpus (learning project)."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "yeGPT author" }]
+dependencies = [
+    # PyTorch is used for tensors/autograd/optim only. The model itself is hand-written.
+    # cu121 build (torch 2.5.x) is what the 4080 dev box already has installed.
+    "torch>=2.5,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yegpt"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/F = pyflakes+pycodestyle, I = isort, UP = pyupgrade, B = bugbear, N = naming.
+select = ["E", "F", "I", "UP", "B", "N"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# Belt-and-suspenders on top of strict: ban the Any escape hatches outright.
+disallow_any_explicit = true
+disallow_any_generics = true
+warn_unreachable = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# torch ships partial stubs; don't let untyped torch internals leak Any into our code.
+module = ["torch.*"]
+follow_untyped_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
