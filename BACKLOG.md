@@ -106,7 +106,7 @@ Ground rules for every task (from the launch spec):
       ON, a fixed documented seed, on CPU; commit the generated `web/samples.json` (verify
       it parses as JSON, has the documented `generated_with` + `samples` shape, and
       contains no raw-corpus dumps, only short generated fragments). [simple]
-- [ ] Add `web/embed.js` plus a minimal `web/demo.html` for manual checking: embed.js is
+- [x] Add `web/embed.js` plus a minimal `web/demo.html` for manual checking: embed.js is
       self-contained vanilla JS (no dependencies, no backend, no build step) exposing a
       global `yegptEmbed(containerElement, samplesUrl)` that fetches `samples.json` and
       typewriter-streams randomly chosen fragments into the container in an endless loop

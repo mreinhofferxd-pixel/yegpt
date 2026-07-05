@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>yeGPT embed demo</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f10;
+      color: #f2f2f2;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    h1 {
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+    #yegpt {
+      max-width: 40rem;
+      min-height: 8rem;
+      padding: 1.5rem;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      border: 1px solid #2a2a2c;
+      border-radius: 0.5rem;
+      background: #161618;
+    }
+    #yegpt::after {
+      content: "\2588";
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    p.note { opacity: 0.4; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>yeGPT</h1>
+  <div id="yegpt"></div>
+  <p class="note">Pregenerated parody samples replayed for effect. Nothing runs live.</p>
+  <script src="embed.js"></script>
+  <script>
+    yegptEmbed(document.getElementById("yegpt"), "samples.json");
+  </script>
+</body>
+</html>
