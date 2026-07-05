@@ -15,7 +15,7 @@ Model reconstruction, the prompt-prefix invariant, and sampling knobs all stay o
 optionally screens profanity, and serialises the batch as JSON.
 
 These fragments are model OUTPUT (parody generation), so `web/samples.json` is safe to commit even
-though the raw corpus never is (BACKLOG ground rules). Honest scope (SPEC.md 0): a small model
+though the raw corpus never is. Honest scope (SPEC.md 0): a small model
 samples near-noise, so the fragments read as gibberish; this is the harness for collecting and
 shipping them, not a path to coherent lyrics.
 """

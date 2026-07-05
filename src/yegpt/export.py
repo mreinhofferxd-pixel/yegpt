@@ -1,4 +1,4 @@
-"""export: turn a trained checkpoint into a smaller fp16 distributable (backlog Unit 2).
+"""export: turn a trained checkpoint into a smaller fp16 distributable for the release.
 
 This is a pure orchestration module in the spirit of `sample.py`: it reuses the checkpoint
 contract `train.py` owns rather than forking it. The flow is load -> reconstruct -> cast ->
@@ -32,7 +32,7 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 # The released model is the settled run3, not train.py's generic output path (which only
 # exists right after a fresh training run).
 DEFAULT_SOURCE_PATH: Final[Path] = _REPO_ROOT / "checkpoints" / "run3" / "yegpt-ckpt.pt"
-# The distributable artifact the release (Unit 2) ships. `dist/` is gitignored, so this is a
+# The distributable artifact the GitHub release ships. `dist/` is gitignored, so this is a
 # build output, never committed.
 DEFAULT_EXPORT_PATH: Final[Path] = _REPO_ROOT / "dist" / "yegpt-small-fp16.pt"
 
