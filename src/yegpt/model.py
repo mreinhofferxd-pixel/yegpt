@@ -23,6 +23,8 @@ shaped, not coherent prose. That is the intended outcome, not a limitation to fi
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import torch
 from torch import Tensor, nn
 from torch.nn.functional import cross_entropy, softmax
@@ -225,6 +227,67 @@ class GPT(nn.Module):
         remove = torch.zeros_like(remove_sorted).scatter(1, sorted_idx, remove_sorted)
         return logits.masked_fill(remove, float("-inf"))
 
+    @staticmethod
+    def _validate_sampling(
+        temperature: float, top_k: int | None, top_p: float | None, repetition_penalty: float
+    ) -> None:
+        """Reject sampling knobs outside their valid ranges, before any tokens are produced."""
+        if temperature <= 0.0:
+            raise ValueError(f"temperature must be > 0, got {temperature}.")
+        if top_k is not None and top_k < 1:
+            raise ValueError(f"top_k must be >= 1 or None, got {top_k}.")
+        if top_p is not None and not 0.0 < top_p <= 1.0:
+            raise ValueError(f"top_p must be in (0, 1] or None, got {top_p}.")
+        if repetition_penalty <= 0.0:
+            raise ValueError(f"repetition_penalty must be > 0, got {repetition_penalty}.")
+
+    def _sample_next(
+        self,
+        idx: Tensor,
+        generator: torch.Generator | None,
+        *,
+        temperature: float,
+        top_k: int | None,
+        top_p: float | None,
+        repetition_penalty: float,
+    ) -> Tensor:
+        """One autoregressive step: from context `idx` `(batch, seq)`, draw the next token.
+
+        Crops the context to the last `block_size` tokens (the positional table only knows that
+        many positions), takes the final-position logits, reshapes them by `repetition_penalty`
+        -> `temperature` -> `top_k` -> `top_p`, softmaxes to a distribution, and samples one token,
+        returned as `(batch, 1)`. Callers must run this under `torch.no_grad()` and have validated
+        the knobs via `_validate_sampling`.
+        """
+        idx_cond = idx[:, -self.cfg.block_size :]  # (batch, <=block_size)
+        logits, _ = self(idx_cond)
+        last_logits = logits[:, -1, :]  # (batch, vocab_size), raw (pre-temperature)
+        if repetition_penalty != 1.0:
+            # CTRL-style penalty over the characters already in the context: divide the logit of
+            # each seen token by the penalty (multiply if negative), so the sampler stops
+            # re-picking it. Duplicate indices scatter the same value, so repeats are idempotent,
+            # not compounded.
+            seen_logits = torch.gather(last_logits, 1, idx_cond)
+            seen_logits = torch.where(
+                seen_logits < 0,
+                seen_logits * repetition_penalty,
+                seen_logits / repetition_penalty,
+            )
+            last_logits = last_logits.scatter(1, idx_cond, seen_logits)
+        # Temperature scales the (penalized) logits: sharpen if <1, flatten if >1.
+        last_logits = last_logits / temperature
+        if top_k is not None:
+            # Mask everything below the k-th largest logit to -inf so the softmax gives it zero
+            # weight: the next char is drawn only from the k most likely candidates.
+            k = min(top_k, last_logits.size(-1))
+            kth = torch.topk(last_logits, k, dim=-1).values[:, -1:]  # (batch, 1)
+            last_logits = last_logits.masked_fill(last_logits < kth, float("-inf"))
+        if top_p is not None:
+            last_logits = self._apply_top_p(last_logits, top_p)
+        probs = softmax(last_logits, dim=-1)
+        idx_next: Tensor = torch.multinomial(probs, num_samples=1, generator=generator)
+        return idx_next  # (batch, 1)
+
     def generate(
         self,
         idx: Tensor,
@@ -238,10 +301,10 @@ class GPT(nn.Module):
     ) -> Tensor:
         """Autoregressively extend `idx` `(batch, seq)` by `max_new_tokens` sampled characters.
 
-        Each step: crop the context to the last `block_size` tokens (the positional table only
-        knows that many positions), take the final-position logits, reshape them by
-        `repetition_penalty` -> `temperature` -> `top_k` -> `top_p`, softmax to a distribution,
-        sample one token, and append it.
+        Each step crops the context to the last `block_size` tokens, reshapes the final-position
+        logits by `repetition_penalty` -> `temperature` -> `top_k` -> `top_p`, softmaxes, samples
+        one token, and appends it (see `_sample_next`). Returns the full `(batch, seq +
+        max_new_tokens)` sequence; use `generate_stream` to consume tokens as they are produced.
 
         `temperature` (> 0) divides the logits before the softmax: < 1 sharpens the distribution
         (more confident, more repetitive — approaching greedy as it nears 0), > 1 flattens it
@@ -260,42 +323,54 @@ class GPT(nn.Module):
         Pass a seeded `generator` for reproducible samples. Call `model.eval()` first if dropout is
         enabled, so sampling isn't perturbed by it.
         """
-        if temperature <= 0.0:
-            raise ValueError(f"temperature must be > 0, got {temperature}.")
-        if top_k is not None and top_k < 1:
-            raise ValueError(f"top_k must be >= 1 or None, got {top_k}.")
-        if top_p is not None and not 0.0 < top_p <= 1.0:
-            raise ValueError(f"top_p must be in (0, 1] or None, got {top_p}.")
-        if repetition_penalty <= 0.0:
-            raise ValueError(f"repetition_penalty must be > 0, got {repetition_penalty}.")
+        self._validate_sampling(temperature, top_k, top_p, repetition_penalty)
         with torch.no_grad():
             for _ in range(max_new_tokens):
-                idx_cond = idx[:, -self.cfg.block_size :]  # (batch, <=block_size)
-                logits, _ = self(idx_cond)
-                last_logits = logits[:, -1, :]  # (batch, vocab_size), raw (pre-temperature)
-                if repetition_penalty != 1.0:
-                    # CTRL-style penalty over the characters already in the context: divide the
-                    # logit of each seen token by the penalty (multiply if negative), so the
-                    # sampler stops re-picking it. Duplicate indices scatter the same value, so
-                    # repeats are idempotent, not compounded.
-                    seen_logits = torch.gather(last_logits, 1, idx_cond)
-                    seen_logits = torch.where(
-                        seen_logits < 0,
-                        seen_logits * repetition_penalty,
-                        seen_logits / repetition_penalty,
-                    )
-                    last_logits = last_logits.scatter(1, idx_cond, seen_logits)
-                # Temperature scales the (penalized) logits: sharpen if <1, flatten if >1.
-                last_logits = last_logits / temperature
-                if top_k is not None:
-                    # Mask everything below the k-th largest logit to -inf so the softmax gives it
-                    # zero weight: the next char is drawn only from the k most likely candidates.
-                    k = min(top_k, last_logits.size(-1))
-                    kth = torch.topk(last_logits, k, dim=-1).values[:, -1:]  # (batch, 1)
-                    last_logits = last_logits.masked_fill(last_logits < kth, float("-inf"))
-                if top_p is not None:
-                    last_logits = self._apply_top_p(last_logits, top_p)
-                probs = softmax(last_logits, dim=-1)
-                idx_next = torch.multinomial(probs, num_samples=1, generator=generator)
+                idx_next = self._sample_next(
+                    idx,
+                    generator,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    repetition_penalty=repetition_penalty,
+                )
                 idx = torch.cat((idx, idx_next), dim=1)  # (batch, seq+1)
         return idx
+
+    def generate_stream(
+        self,
+        idx: Tensor,
+        max_new_tokens: int,
+        generator: torch.Generator | None = None,
+        *,
+        temperature: float = 1.0,
+        top_k: int | None = None,
+        top_p: float | None = None,
+        repetition_penalty: float = 1.0,
+    ) -> Iterator[Tensor]:
+        """Like `generate`, but yield each freshly sampled token `(batch, 1)` as it is produced.
+
+        Same step and same knobs as `generate` (see its docstring); the only difference is
+        delivery. Rather than returning the whole sequence at the end, this yields the newly
+        sampled token after each step so a caller can decode and display characters live (e.g. a
+        REPL or CLI printing as the model types) instead of waiting for all `max_new_tokens`.
+        The running context is tracked internally, so concatenating the yielded tokens onto the
+        original `idx` reproduces exactly what `generate` would return for the same seed.
+
+        As a generator, its body — including knob validation — runs only once iteration begins;
+        consume it (e.g. `for tok in model.generate_stream(...)`) to drive sampling. Pass a seeded
+        `generator` for reproducible samples, and call `model.eval()` first if dropout is enabled.
+        """
+        self._validate_sampling(temperature, top_k, top_p, repetition_penalty)
+        with torch.no_grad():
+            for _ in range(max_new_tokens):
+                idx_next = self._sample_next(
+                    idx,
+                    generator,
+                    temperature=temperature,
+                    top_k=top_k,
+                    top_p=top_p,
+                    repetition_penalty=repetition_penalty,
+                )
+                idx = torch.cat((idx, idx_next), dim=1)  # (batch, seq+1)
+                yield idx_next

@@ -61,7 +61,7 @@ Ground rules for every task (from the launch spec):
 
 ## Unit 3: yegpt CLI (streaming demo)
 
-- [ ] Add streaming generation to `src/yegpt/model.py`: a `GPT.generate_stream(...)`
+- [x] Add streaming generation to `src/yegpt/model.py`: a `GPT.generate_stream(...)`
       generator yielding one sampled token id per step, with the exact same signature
       knobs and validation as `generate` (temperature, top_k, top_p, repetition_penalty,
       seeded generator); share the per-step sampling logic with `generate` rather than

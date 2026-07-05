@@ -194,6 +194,43 @@ def test_generate_repetition_penalty_flips_a_greedy_repeat() -> None:
     assert torch.equal(off, plain)
 
 
+def test_generate_stream_yields_each_new_token() -> None:
+    # One (batch, 1) long token per requested step, all in-vocab; the stream drives sampling.
+    model = GPT(_CFG).eval()
+    idx = torch.zeros((1, 1), dtype=torch.long)
+    tokens = list(model.generate_stream(idx, max_new_tokens=10))
+    assert len(tokens) == 10
+    for tok in tokens:
+        assert tok.shape == (1, 1)
+        assert tok.dtype == torch.long
+        assert int(tok.min()) >= 0 and int(tok.max()) < _VOCAB
+
+
+def test_generate_stream_matches_generate() -> None:
+    # Streaming only changes delivery, not the samples: concatenating the yielded tokens onto the
+    # seed must reproduce generate's full output exactly under the same seed.
+    model = GPT(_CFG).eval()
+    idx = torch.zeros((1, 1), dtype=torch.long)
+    g1, g2 = torch.Generator(), torch.Generator()
+    g1.manual_seed(7)
+    g2.manual_seed(7)
+    full = model.generate(idx, max_new_tokens=12, generator=g1)
+    streamed = idx.clone()
+    for tok in model.generate_stream(idx, max_new_tokens=12, generator=g2):
+        streamed = torch.cat((streamed, tok), dim=1)
+    assert torch.equal(full, streamed)
+
+
+def test_generate_stream_rejects_invalid_params() -> None:
+    # Validation lives at the top of the generator body, so the first step raises before yielding.
+    model = GPT(_CFG).eval()
+    idx = torch.zeros((1, 1), dtype=torch.long)
+    with pytest.raises(ValueError, match="temperature"):
+        next(model.generate_stream(idx, max_new_tokens=4, temperature=0.0))
+    with pytest.raises(ValueError, match="repetition_penalty"):
+        next(model.generate_stream(idx, max_new_tokens=4, repetition_penalty=0.0))
+
+
 def test_num_parameters_is_positive() -> None:
     assert GPT(_CFG).num_parameters() > 0
 
