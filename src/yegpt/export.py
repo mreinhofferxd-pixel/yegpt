@@ -26,9 +26,12 @@ from typing import Final
 
 from yegpt.model import GPT
 from yegpt.tokenizer import CharTokenizer
-from yegpt.train import DEFAULT_CHECKPOINT_PATH, load_checkpoint, save_checkpoint
+from yegpt.train import load_checkpoint, save_checkpoint
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+# The released model is the settled run3, not train.py's generic output path (which only
+# exists right after a fresh training run).
+DEFAULT_SOURCE_PATH: Final[Path] = _REPO_ROOT / "checkpoints" / "run3" / "yegpt-ckpt.pt"
 # The distributable artifact the release (Unit 2) ships. `dist/` is gitignored, so this is a
 # build output, never committed.
 DEFAULT_EXPORT_PATH: Final[Path] = _REPO_ROOT / "dist" / "yegpt-small-fp16.pt"
@@ -82,7 +85,7 @@ def main() -> None:  # pragma: no cover - thin CLI wrapper; export_fp16 holds th
         description="Export a yeGPT checkpoint to a smaller fp16 distributable."
     )
     parser.add_argument(
-        "--checkpoint", type=Path, default=DEFAULT_CHECKPOINT_PATH,
+        "--checkpoint", type=Path, default=DEFAULT_SOURCE_PATH,
         help="Source checkpoint written by train.py.",
     )
     parser.add_argument(
