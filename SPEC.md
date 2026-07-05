@@ -2,7 +2,7 @@
 
 > **Working document for Claude Code.** This is a learning project. The goal is to
 > *understand how a transformer language model works from the ground up* by building
-> one by hand - no `transformers`, no pretrained weights, no library magic for the
+> one directly on PyTorch primitives - no `transformers`, no pretrained weights, no library magic for the
 > model itself. The corpus is Kanye West text (lyrics + interview/rant transcripts +
 > tweets) because the voice is distinctive enough that even a tiny half-trained model
 > produces recognizable output, which maximizes learning-signal-per-hour.
@@ -25,7 +25,7 @@ iterate fast - minutes-per-checkpoint, not hours.
 - It is **NOT** an RL/fine-tuning project. GRPO/DPO/PPO are explicitly a *future,
   separate* project (see §7). Do not pull them in.
 - The model itself (tokenizer, attention, transformer blocks, training loop) is
-  **written by hand and readable line-by-line.** PyTorch tensors/autograd/optim are
+  **implemented in this repo and readable line-by-line.** PyTorch tensors/autograd/optim are
   allowed; `nn.Transformer` / HuggingFace model classes are **not** - they defeat the
   purpose. `torch.nn.MultiheadAttention` is also banned; attention is implemented manually.
 
@@ -55,7 +55,7 @@ residual connections and LayerNorm) → final LayerNorm → linear head to vocab
 |---|---|---|---|
 | Tokenizer | Character-level | Kanye text is slang/ad-lib/punctuation chaos; char-level handles it without vocab engineering and keeps the project simple & fully readable | Output too coarse and you want to scale up later |
 | Model size | ~10M params (start smaller, ~1-3M, to first prove the loop) | Fits 4080 trivially, iterates in minutes, big enough to show style | After loop proven, scale toward 10M for better output |
-| Framework | PyTorch (tensors/autograd/optim only) | Industry standard, lets us write the model by hand without reimplementing backprop | - |
+| Framework | PyTorch (tensors/autograd/optim only) | Industry standard, lets us implement the model ourselves without reimplementing backprop | - |
 | Precision | bf16 mixed precision | 4080 supports it, ~halves memory, speeds training | OOM or instability |
 | Context length | Start 128, target 256 chars | Small enough to train fast, long enough to capture line/bar structure | - |
 | Param mgmt | `pyproject.toml`, `uv` or `pip`, no notebook | Author prefers modern Python layout, reproducibility | - |
@@ -87,7 +87,7 @@ yegpt/
 │       ├── data_prep.py     # raw/ -> corpus.txt, reports size
 │       ├── tokenizer.py     # char-level encode/decode, vocab
 │       ├── dataset.py       # corpus -> batched (x, y) tensors
-│       ├── model.py         # the GPT, written by hand
+│       ├── model.py         # the GPT
 │       ├── train.py         # training loop, checkpointing
 │       └── sample.py        # generate from a checkpoint
 ├── checkpoints/             # gitignored
@@ -146,7 +146,7 @@ Load `corpus.txt`, encode to a tensor, train/val split (e.g. 90/10), `get_batch(
 returning `(x, y)` of shape `(batch_size, block_size)` where y is x shifted by one.
 Reproducible via seed. Test: shapes, dtypes, and that y is x shifted by one.
 
-### TICKET-06 - `model.py` (the core - written by hand) + test
+### TICKET-06 - `model.py` (the core) + test
 Implement, as readable separate `nn.Module`s:
 - `Head` - single causal self-attention head (Q/K/V projections, scaled dot-product,
   causal mask via `tril`, softmax, weighted sum). **Implemented manually**, not

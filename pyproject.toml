@@ -11,7 +11,7 @@ requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "yeGPT author" }]
 dependencies = [
-    # PyTorch is used for tensors/autograd/optim only. The model itself is hand-written.
+    # PyTorch is used for tensors/autograd/optim only; no transformer library modules.
     # cu121 build (torch 2.5.x) is what the 4080 dev box already has installed.
     "torch>=2.5,<3",
 ]

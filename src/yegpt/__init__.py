@@ -1,4 +1,4 @@
-"""yeGPT: a character-level GPT built from scratch as a learning project.
+"""yeGPT: a character-level GPT trained from scratch as a learning project.
 
 See SPEC.md for the design and the ticket-by-ticket build plan.
 """

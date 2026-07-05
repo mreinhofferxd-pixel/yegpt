@@ -1,4 +1,4 @@
-"""model: the GPT, written by hand (SPEC.md §6, TICKET-06).
+"""model: the GPT (SPEC.md §6).
 
 This is a decoder-only transformer of the nanoGPT class, built from small `nn.Module`s
 so every moving part is readable. PyTorch supplies tensors/autograd/optim and the *leaf*

@@ -1,14 +1,15 @@
 # Model Card: yeGPT (small)
 
-yeGPT is a character-level, decoder-only GPT written by hand from scratch as a learning
-project. It is trained on a Kanye West corpus (lyrics, interview/rant transcripts, tweets)
+yeGPT is a character-level, decoder-only GPT built as a learning project, with the model
+implemented directly on PyTorch primitives (no transformer library modules). It is trained
+from scratch (random init, no pretrained weights) on a Kanye West corpus (lyrics and tweets)
 and produces recognizably Kanye-styled parody text. This card describes the released
 `yegpt-small` checkpoint (the settled `run3` configuration, ~1.87M parameters).
 
 ## Summary
 
 - **Parameters:** 1.87M (all trainable)
-- **Type:** decoder-only transformer, character-level, hand-written attention
+- **Type:** decoder-only transformer, character-level, custom attention implementation
 - **Task:** next-character prediction / autoregressive text generation
 - **Corpus:** ~0.67MB of Kanye West text after dedup (NOT distributed)
 - **Intended use:** educational demo and AI-generated parody, CPU-friendly
@@ -30,7 +31,7 @@ tensors, autograd, optim, and the leaf layers (`Linear`, `Embedding`, `LayerNorm
 | Context length (block_size) | 256 characters |
 | Vocabulary | 104 characters |
 | Tokenizer | character-level (dict lookup `stoi`/`itos`) |
-| Attention | hand-written multi-head causal self-attention |
+| Attention | custom multi-head causal self-attention |
 | MLP | 4x hidden expansion, GELU |
 | Blocks | pre-norm LayerNorm + residual connections |
 | Positions | learned absolute position embedding table |

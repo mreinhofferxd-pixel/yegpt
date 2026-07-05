@@ -2,7 +2,7 @@
 
 # yeGPT
 
-**A character-level GPT, written by hand from scratch, trained on a Kanye West corpus.**
+**A character-level GPT on raw PyTorch, trained on a Kanye West corpus.**
 
 Lyrics + tweets, trained on a single RTX 4080.
 
@@ -13,7 +13,7 @@ Lyrics + tweets, trained on a single RTX 4080.
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.5-ee4c2c.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Linting: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 [![Types: mypy strict](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
-[![Built from scratch](https://img.shields.io/badge/built-from%20scratch-orange.svg)](#what-i-learned)
+[![No transformer libs](https://img.shields.io/badge/no-transformer%20libs-orange.svg)](#what-i-learned)
 
 [Quickstart](#quickstart) · [Run the pipeline](#run-the-pipeline) · [Results](#results-real-samples) · [What I learned](#what-i-learned) · [SPEC](SPEC.md) · [Model card](MODEL_CARD.md)
 
@@ -23,10 +23,10 @@ Lyrics + tweets, trained on a single RTX 4080.
 
 ## What this is
 
-A decoder-only transformer built line-by-line to understand how one actually works - tokenizer,
+A decoder-only transformer built to understand how one actually works - tokenizer,
 attention, transformer blocks, training loop. **No** `nn.Transformer`, **no**
 `nn.MultiheadAttention`, **no** HuggingFace model classes, **no** pretrained weights. PyTorch is
-used only for tensors/autograd/optim; everything model-shaped is assembled by hand in
+used only for tensors/autograd/optim; everything model-shaped is implemented directly in
 [model.py](src/yegpt/model.py).
 
 This is a **learning project**, and its honest result is the deliverable:
@@ -246,9 +246,9 @@ the same recognizable gibberish - bigger just memorizes more of the corpus verba
 **Tokenization (10.2) - skipped, on purpose.** The one lever that could actually change the
 coherence-per-parameter tradeoff is tokenization: a BPE/word tokenizer packs more characters into
 each token, so a fixed context spans more text and every token carries more meaning. That's the
-genuinely interesting ablation - but it's a substantial from-scratch build (learn merges from the
-corpus, a new hand-written `encode`/`decode`, its own tests; no `tokenizers`/`tiktoken`, that
-would break the from-scratch rule), and it would not change the core finding that *this* corpus is
+genuinely interesting ablation - but it's a substantial build (learn merges from the
+corpus, its own `encode`/`decode`, its own tests; no `tokenizers`/`tiktoken`, that
+would break the no-library rule), and it would not change the core finding that *this* corpus is
 data-bound. Left as future work.
 
 ## What I learned
@@ -271,7 +271,7 @@ mask** (`tril`, future positions set to `-inf` before the softmax) is what makes
 model: position *t* may attend only to positions ≤ *t*, never to the future it's being trained
 to predict. **Multi-head** attention runs `n_head` of these in parallel in `n_embd // n_head`
 subspaces, concatenates them, and mixes them with an output projection - several notions of
-"what's relevant" at once. None of this uses `nn.MultiheadAttention`; it's assembled by hand
+"what's relevant" at once. None of this uses `nn.MultiheadAttention`; it's implemented directly
 in [model.py](src/yegpt/model.py).
 
 **Positional embeddings buy order.** The core attention operation - the softmax-weighted sum
@@ -345,7 +345,7 @@ here.
 ## Layout
 
 ```
-src/yegpt/   # the model and pipeline, written by hand
+src/yegpt/   # the model and pipeline
 tests/       # pytest suite
 web/         # static embed that replays pregenerated parody samples
 data/raw/    # author drops source .txt here (gitignored)

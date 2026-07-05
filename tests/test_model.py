@@ -1,4 +1,4 @@
-"""Tests for the hand-written GPT (SPEC.md §6, TICKET-06): shapes, loss, generate.
+"""Tests for the GPT (SPEC.md §6): shapes, loss, generate.
 
 Tiny config so everything runs in milliseconds on CPU. dropout=0.0 makes the forward pass
 deterministic, so reproducibility checks don't depend on eval-mode subtleties.
@@ -236,7 +236,7 @@ def test_num_parameters_is_positive() -> None:
 
 
 def test_submodule_output_shapes() -> None:
-    # The hand-written pieces each preserve the (batch, seq, n_embd) residual-stream shape.
+    # The model pieces each preserve the (batch, seq, n_embd) residual-stream shape.
     x = torch.randn(_CFG.batch_size, _CFG.block_size, _CFG.n_embd)
     assert Head(_CFG, _CFG.head_size)(x).shape == (_CFG.batch_size, _CFG.block_size, _CFG.head_size)
     for module in (MultiHeadAttention(_CFG), FeedForward(_CFG), Block(_CFG)):

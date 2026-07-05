@@ -1,4 +1,4 @@
-"""train: the loop that turns the hand-written GPT into a (styled-gibberish) model.
+"""train: the loop that turns the GPT into a (styled-gibberish) model.
 
 SPEC.md §5/§6, TICKET-07. This module owns three things nothing else in the project does:
 the optimizer + step loop, the bf16 mixed-precision policy, and the on-disk **checkpoint
