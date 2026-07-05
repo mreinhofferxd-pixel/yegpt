@@ -116,7 +116,7 @@ Ground rules for every task (from the launch spec):
 
 ## Unit 5: public-launch polish
 
-- [ ] Add MIT `LICENSE` (copyright 2026 mreinhofferxd-pixel) covering the CODE only;
+- [x] Add MIT `LICENSE` (copyright 2026 mreinhofferxd-pixel) covering the CODE only;
       confirm `pyproject.toml` license/author fields stay consistent (weights are covered
       by the MODEL_CARD.md note instead). [simple]
 - [ ] Rewrite `README.md` in modern public-GitHub style: shields badges (Python 3.12, MIT
