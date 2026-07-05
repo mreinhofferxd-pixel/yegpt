@@ -21,7 +21,7 @@ Lyrics + interview/rant transcripts + tweets, on a single RTX 4080.
 
 ## What this is
 
-A decoder-only transformer built line-by-line to understand how one actually works — tokenizer,
+A decoder-only transformer built line-by-line to understand how one actually works - tokenizer,
 attention, transformer blocks, training loop. **No** `nn.Transformer`, **no**
 `nn.MultiheadAttention`, **no** HuggingFace model classes, **no** pretrained weights. PyTorch is
 used only for tensors/autograd/optim; everything model-shaped is assembled by hand in
@@ -30,10 +30,10 @@ used only for tensors/autograd/optim; everything model-shaped is assembled by ha
 This is a **learning project**, and its honest result is the deliverable:
 
 > At this scale (~1.9–10.9M params) on a ~0.67MB corpus, the model produces *recognizably
-> Kanye-styled gibberish* — word-shaped, line-shaped, clearly "trying," and leaning on
+> Kanye-styled gibberish* - word-shaped, line-shaped, clearly "trying," and leaning on
 > **memorized fragments** of the training text. That is the success criterion. It does **not**
 > write coherent lyrics, and it can't: there isn't enough data. No RL is involved (GRPO/DPO/PPO
-> are a deliberately separate future project — see [SPEC.md](SPEC.md) §7).
+> are a deliberately separate future project - see [SPEC.md](SPEC.md) §7).
 
 See [SPEC.md](SPEC.md) for the full design, constraints, and ticket plan.
 
@@ -57,11 +57,11 @@ Installing the package wires a single `yegpt` console entry point ([cli.py](src/
 It has two modes:
 
 ```sh
-# Subcommand mode — routes to a pipeline module's own CLI:
+# Subcommand mode - routes to a pipeline module's own CLI:
 yegpt data-prep | tweet-prep | dedup | train | sample | export | export-samples
 yegpt sample --help        # shows sample.py's own flags
 
-# Prompt mode — anything that is NOT a subcommand is treated as a seed and
+# Prompt mode - anything that is NOT a subcommand is treated as a seed and
 # typewriter-streamed to stdout, one character per sampled token (CPU only):
 yegpt "I'm the greatest" --max-chars 200 --seed 1337
 ```
@@ -69,7 +69,7 @@ yegpt "I'm the greatest" --max-chars 200 --seed 1337
 ## Demo
 
 `web/` holds a zero-dependency static embed that **replays pregenerated parody fragments** with a
-typewriter effect — nothing runs live in the browser. The fragments in
+typewriter effect - nothing runs live in the browser. The fragments in
 [web/samples.json](web/samples.json) are model *output* (safe to commit; the raw corpus is not),
 emitted by `yegpt export-samples` from the released run3 checkpoint with the model-card knobs.
 
@@ -120,7 +120,7 @@ before/after below were produced.
 
 Each run writes **two** checkpoints to its `--out-dir`: `yegpt-ckpt.pt` (the final-step weights)
 and `yegpt-best.pt` (the lowest-val snapshot). Point `--checkpoint` at either. On an overfitting
-run they differ — and the best is the one you actually want (see [What I learned](#what-i-learned)).
+run they differ - and the best is the one you actually want (see [What I learned](#what-i-learned)).
 
 > **Windows console note.** A *near-init* model samples roughly uniformly over the whole vocab,
 > including characters the default Windows console code page (cp1252) can't print, so piping
@@ -135,10 +135,10 @@ Both are verbatim from actual checkpoints, same prompt (empty) and seed (`1337`)
 step); "after" is the same model after 5000 steps.
 
 <table>
-<tr><th>Before — random init (step 0)</th><th>After — 5000 steps (run3)</th></tr>
+<tr><th>Before - random init (step 0)</th><th>After - 5000 steps (run3)</th></tr>
 <tr><td valign="top">
 
-train/val ≈ 4.63/4.62 — character noise, no words, no word boundaries, rare Unicode. The loss
+train/val ≈ 4.63/4.62 - character noise, no words, no word boundaries, rare Unicode. The loss
 sits right at ≈ `ln(104)` = 4.64, a *roughly uniform* draw over the 104-char vocab: the model
 knows nothing yet.
 
@@ -152,8 +152,8 @@ Bn+ÉC)c )fY⁠Nat:ā.N3GQ]R&oq Q&ŐaZó-i
 
 </td><td valign="top">
 
-train/val ≈ 1.14/1.59 — word-shaped, line-shaped, recognizably the voice (cadence, slang,
-`Roc-A-Fella`, `Rollie`). Still gibberish — the *grammar of Kanye* without the meaning.
+train/val ≈ 1.14/1.59 - word-shaped, line-shaped, recognizably the voice (cadence, slang,
+`Roc-A-Fella`, `Rollie`). Still gibberish - the *grammar of Kanye* without the meaning.
 
 ```
 we gonna did in here we to
@@ -178,15 +178,15 @@ batch 64, lr 3e-4, block_size 256, on the 4080 (bf16 autocast, minutes per run):
 
 | run | n_embd | dropout | params | final train | final val | best val | curve |
 |-----|--------|---------|--------|-------------|-----------|----------|-------|
-| run1 | 256 | 0.2 | 3.28M | 0.89 | 1.68 | 1.59 (step 2500) | **memorizes** — val turns back up |
-| run2 | 256 | 0.3 | 3.28M | 1.15 | 1.60 | 1.59 (step 3750) | flat — divergence regularized away |
-| run3 | 192 | 0.2 | 1.87M | 1.14 | 1.59 | 1.58 (step 4250) | flat — **best generalizer, least compute** |
+| run1 | 256 | 0.2 | 3.28M | 0.89 | 1.68 | 1.59 (step 2500) | **memorizes** - val turns back up |
+| run2 | 256 | 0.3 | 3.28M | 1.15 | 1.60 | 1.59 (step 3750) | flat - divergence regularized away |
+| run3 | 192 | 0.2 | 1.87M | 1.14 | 1.59 | 1.58 (step 4250) | flat - **best generalizer, least compute** |
 
-**run3 is the settled config.** The bigger model (run1) doesn't generalize better — it just
+**run3 is the settled config.** The bigger model (run1) doesn't generalize better - it just
 memorizes harder. Both more dropout and less capacity remove the divergence; the smaller model
 reaches the lowest val at the lowest cost.
 
-### TICKET-10: scale & ablate — does a bigger model help?
+### TICKET-10: scale & ablate - does a bigger model help?
 
 Short answer: **no, not on this data.** TICKET-09 suspected the ~1.58 val floor was set by the
 0.67MB corpus, not the model size. TICKET-10 tests that head-on: hold the corpus and the training
@@ -213,28 +213,28 @@ the 4080 cap out?"
 
 Three things to read off it:
 
-1. **Best val is flat — the data wall is real.** Across a 5.8× parameter range (1.9M → 10.9M) and
-   a 2× context increase, best validation loss moves only between 1.563 and 1.599 — that's noise.
+1. **Best val is flat - the data wall is real.** Across a 5.8× parameter range (1.9M → 10.9M) and
+   a 2× context increase, best validation loss moves only between 1.563 and 1.599 - that's noise.
    Adding capacity does not lower the floor. The floor is set by the 0.67MB of text, full stop.
 2. **Scale buys memorization, not generalization.** Final *train* loss collapses monotonically
-   with size — 1.14 → 0.60 → 0.23 → **0.08** — while final *val* gets steadily *worse* — 1.59 →
+   with size - 1.14 → 0.60 → 0.23 → **0.08** - while final *val* gets steadily *worse* - 1.59 →
    1.84 → 2.32 → **2.86**. The big models don't learn the language better; they memorize the
    training split harder, and start overfitting *earlier* (best-val at step 4250 for baseline vs
    step **1500** for long-ctx). This is exactly why the loop keeps a **best-val** checkpoint.
-3. **On the 4080, the cap is time and context — not VRAM.** Even the largest run peaks at **9.45
-   GiB of 16** — parameters are cheap for a char model. What caps out is **wall-clock per
+3. **On the 4080, the cap is time and context - not VRAM.** Even the largest run peaks at **9.45
+   GiB of 16** - parameters are cheap for a char model. What caps out is **wall-clock per
    checkpoint**: doubling context 256 → 512 is O(T²) in attention and drops throughput from 553k
    to 133k tokens/s, turning a 2.5-minute run into a 20.5-minute one. The practical ceiling on
    this box is **~512 context at batch 64**, and it's a *time* ceiling well before it's a memory one.
 
 Sampling each run's **best-val** checkpoint (`--temperature 0.8 --seed 1337`) confirms the
 headline: **coherence does not improve with scale.** All four sit at ~1.57–1.60 val and read as
-the same recognizable gibberish — bigger just memorizes more of the corpus verbatim.
+the same recognizable gibberish - bigger just memorizes more of the corpus verbatim.
 
-**Tokenization (10.2) — skipped, on purpose.** The one lever that could actually change the
+**Tokenization (10.2) - skipped, on purpose.** The one lever that could actually change the
 coherence-per-parameter tradeoff is tokenization: a BPE/word tokenizer packs more characters into
 each token, so a fixed context spans more text and every token carries more meaning. That's the
-genuinely interesting ablation — but it's a substantial from-scratch build (learn merges from the
+genuinely interesting ablation - but it's a substantial from-scratch build (learn merges from the
 corpus, a new hand-written `encode`/`decode`, its own tests; no `tokenizers`/`tiktoken`, that
 would break the from-scratch rule), and it would not change the core finding that *this* corpus is
 data-bound. Left as future work.
@@ -245,7 +245,7 @@ The deliverable of this project is understanding *why* the pieces are shaped the
 
 **Character-level tokenization.** The vocabulary is the 104 distinct characters in the corpus;
 `encode`/`decode` are dict lookups (`stoi`/`itos`). Char-level sidesteps all vocabulary
-engineering, which suits a corpus of slang, ad-libs, and chaotic punctuation — at the cost of
+engineering, which suits a corpus of slang, ad-libs, and chaotic punctuation - at the cost of
 spending model capacity learning spelling and spacing that a word/BPE tokenizer would get for
 free.
 
@@ -258,25 +258,25 @@ into weights; the output is the weighted sum of values. A **causal
 mask** (`tril`, future positions set to `-inf` before the softmax) is what makes it a language
 model: position *t* may attend only to positions ≤ *t*, never to the future it's being trained
 to predict. **Multi-head** attention runs `n_head` of these in parallel in `n_embd // n_head`
-subspaces, concatenates them, and mixes them with an output projection — several notions of
+subspaces, concatenates them, and mixes them with an output projection - several notions of
 "what's relevant" at once. None of this uses `nn.MultiheadAttention`; it's assembled by hand
 in [model.py](src/yegpt/model.py).
 
-**Positional embeddings buy order.** The core attention operation — the softmax-weighted sum
-of values — is *permutation-equivariant*: with no mask and no position signal, permuting the
+**Positional embeddings buy order.** The core attention operation - the softmax-weighted sum
+of values - is *permutation-equivariant*: with no mask and no position signal, permuting the
 inputs just permutes the outputs, so a line would be treated as a *bag* of characters. The
 causal mask already injects *some* order on its own (it distinguishes earlier positions from
 later ones, so a causal model is not permutation-equivariant), but a learned positional
 embedding table (`block_size × n_embd`), added to the token embeddings, gives the model a
-direct, *absolute* notion of where each character sits —
+direct, *absolute* notion of where each character sits -
 which is what lets it learn that newlines start lines and that letters cluster into words. The
 table also caps the context: it has exactly `block_size` rows, so longer contexts must be
 cropped (that's why `generate()` only ever feeds the last `block_size` tokens).
 
 **Residuals + pre-norm make depth trainable.** Each sublayer is wrapped as
 `x = x + sublayer(LayerNorm(x))`. The **residual** means a block learns a *correction* to the
-stream rather than replacing it, giving gradients a short, direct path back through every layer
-— that's what keeps a deep stack trainable. **Pre-norm** (normalize the *input* to each
+stream rather than replacing it, giving gradients a short, direct path back through every layer -
+that's what keeps a deep stack trainable. **Pre-norm** (normalize the *input* to each
 sublayer, leaving the residual stream itself un-normalized) trains more stably than the
 original post-norm design.
 
@@ -285,15 +285,15 @@ original post-norm design.
   the 104 characters, and the cross-entropy (in nats) of a uniform predictor is exactly
   `ln(vocab)`. Observed step-0 loss was 4.62–4.69: values land just above `ln(104)` from random
   init, and the small dip below it on one run is finite-batch sampling noise, not a predictor
-  better than uniform — either way, the model knowing nothing, by the numbers.
+  better than uniform - either way, the model knowing nothing, by the numbers.
 - **It falls fast, then plateaus near ~1.58–1.59.** Early steps learn cheap statistics (letter
   frequencies, spaces, common short words); the plateau is the **data/capacity ceiling** for
-  this corpus. Crucially, *adding parameters did not lower it* — run1 (3.3M) and run3 (1.9M)
+  this corpus. Crucially, *adding parameters did not lower it* - run1 (3.3M) and run3 (1.9M)
   bottom out at essentially the same val floor (if anything the smaller model edges it out).
   The wall is the 0.67MB of text, not the model size.
 - **Validation divergence is memorization, and it's the whole point.** In run1, val loss
   bottoms (1.59 at step 2500) and then climbs back to 1.68 while train keeps falling to 0.89.
-  The model is fitting patterns specific to the training split that don't transfer — i.e.
+  The model is fitting patterns specific to the training split that don't transfer - i.e.
   memorizing. A sub-1MB char corpus all but guarantees this, which is exactly why the run was
   done at this size: to *watch* it happen in the val curve. It also has a practical consequence,
   which is why the loop saves **both** a final and a best-val checkpoint: for run1 the best
@@ -305,28 +305,28 @@ original post-norm design.
   measures memorized recall and looks artificially good), and copies that don't still inflate
   the corpus and let the model memorize repeated verses inside the training split. Removing the
   cross-file duplicates (TICKET-09.0) clears both confounds, so the train-vs-val gap reflects
-  real generalization — the divergence above is honest, not bookkeeping.
+  real generalization - the divergence above is honest, not bookkeeping.
 
 **Temperature and top-k shape sampling, not the model.** Generation draws each character from
 the softmax over the next-char logits. `--temperature` divides those logits first: below 1 it
 sharpens the distribution (the model commits to its favourite continuations), above 1 it flattens
 it (more variety, more noise); `--top-k` restricts each draw to the K most likely characters.
-Both change *how you read out* a fixed checkpoint — no retraining. The failure mode is the
-instructive part: at `--temperature 0.5 --top-k 10`, run3 collapses into repetition — *"the lights
-of the lights of the lights …"* — because once it's confident, low temperature keeps re-picking the
+Both change *how you read out* a fixed checkpoint - no retraining. The failure mode is the
+instructive part: at `--temperature 0.5 --top-k 10`, run3 collapses into repetition - *"the lights
+of the lights of the lights …"* - because once it's confident, low temperature keeps re-picking the
 same high-probability loop. **`--repetition-penalty` (> 1, e.g. 1.3) is the direct fix**: it
 down-weights characters already in the context so the sampler can't lock into "love love love",
 which visibly cleans up the low-temperature output without any retraining. **`--top-p` (nucleus
-sampling)** is an adaptive alternative to `--top-k` — it keeps the smallest set of top characters
+sampling)** is an adaptive alternative to `--top-k` - it keeps the smallest set of top characters
 whose probabilities sum to *p*, so the cutoff tightens when the model is confident and loosens when
 it isn't. Around temperature 0.7–0.9 with a mild repetition penalty reads best; temperatures above 1
-push back toward noise. These change *how a fixed checkpoint is read out*, not the weights — and
+push back toward noise. These change *how a fixed checkpoint is read out*, not the weights - and
 notably they raise readability, not coherence: the output is less broken but no more meaningful,
 because meaning is capped by the data. (All implemented in `model.generate`, surfaced as flags by
-`sample.py` — the model owns the sampling policy.)
+`sample.py` - the model owns the sampling policy.)
 
 **Honest scope.** What comes out is styled gibberish that leans on memorized fragments, not
-lyrics — and that is the intended end state, not a bug to fix. Coherent generation would need
+lyrics - and that is the intended end state, not a bug to fix. Coherent generation would need
 much more data and scale (and, as a *separate* project, RL on top). None of that is in scope
 here.
 
@@ -342,6 +342,6 @@ checkpoints/ # saved model weights (gitignored)
 
 ## License
 
-Source code is [MIT](LICENSE). The license covers the code only — **not** the training corpus,
+Source code is [MIT](LICENSE). The license covers the code only - **not** the training corpus,
 raw source text, or model weights, which are not distributed under it (see
 [MODEL_CARD.md](MODEL_CARD.md)).

@@ -129,7 +129,7 @@ Ground rules for every task (from the launch spec):
       live), a corpus section (repo ships only the corpus-building scripts, how to source
       your own data, lyrics never committed), and honest limitations. Keep a condensed
       "what I learned" section. No em dashes anywhere in the file. [complex]
-- [ ] Scrub em dashes from the remaining tracked Markdown (`SPEC.md`, `TICKET-09.md`,
+- [x] Scrub em dashes from the remaining tracked Markdown (`SPEC.md`, `TICKET-09.md`,
       `TICKET-10.md`, and any doc added by earlier tasks that slipped): replace with
       hyphens or reword; acceptance: searching tracked `*.md` files for the em dash
       character returns nothing. [simple]
