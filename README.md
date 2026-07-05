@@ -4,8 +4,10 @@
 
 **A character-level GPT, written by hand from scratch, trained on a Kanye West corpus.**
 
-Lyrics + interview/rant transcripts + tweets, on a single RTX 4080.
+Lyrics + tweets, trained on a single RTX 4080.
 
+[![CI](https://github.com/mreinhofferxd-pixel/yegpt/actions/workflows/ci.yml/badge.svg)](https://github.com/mreinhofferxd-pixel/yegpt/actions/workflows/ci.yml)
+[![Params](https://img.shields.io/badge/params-1.87M-8A2BE2.svg)](MODEL_CARD.md)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.5-ee4c2c.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -39,18 +41,28 @@ See [SPEC.md](SPEC.md) for the full design, constraints, and ticket plan.
 
 ## Quickstart
 
-Requires Python **3.11 or 3.12** (PyTorch wheels; 3.13/3.14 not yet supported here) and an
-existing CUDA-capable `torch` install for training.
+Requires Python **3.11 or 3.12** (PyTorch wheels; 3.13/3.14 not yet supported here). Sampling
+runs fine on CPU; CUDA is only needed to train.
 
 ```sh
-# Isolated env that reuses the already-installed CUDA torch, plus the dev tools.
-py -3.12 -m venv --system-site-packages .venv
+python -m venv .venv
+# CPU-only torch keeps the install small (skip this line if you already have torch):
+.venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 .venv/Scripts/python -m pip install -e ".[dev]"
 
 # Sanity checks (the quality gate)
 .venv/Scripts/python -m ruff check .
 .venv/Scripts/python -m mypy
 .venv/Scripts/python -m pytest
+```
+
+Grab the trained weights (fp16, ~3.6MB) from the
+[latest release](https://github.com/mreinhofferxd-pixel/yegpt/releases) and point the CLI at
+them:
+
+```sh
+gh release download v0.1.0 --pattern "yegpt-small-fp16.pt"
+yegpt "I'm the greatest" --checkpoint yegpt-small-fp16.pt
 ```
 
 Installing the package wires a single `yegpt` console entry point ([cli.py](src/yegpt/cli.py)).
@@ -100,7 +112,7 @@ The full pipeline is four steps: build the corpus, dedup it, train, sample.
 
 ```sh
 # 3. train  (writes a checkpoint to --out-dir; sweep hyperparameters via flags, not by editing
-#    TrainConfig). This is the settled config from TICKET-09 (~1.9M params).
+#    TrainConfig). This is the settled config from the first training sweep (~1.9M params).
 .venv/Scripts/python -m yegpt.train \
     --n-embd 192 --block-size 256 --dropout 0.2 \
     --max-iters 5000 --eval-interval 250 --out-dir checkpoints/run3
@@ -171,7 +183,7 @@ And I know I know the Roc-A-Fella, King's in the Hotny
 </td></tr>
 </table>
 
-### TICKET-09: what the runs showed
+### What the training runs showed
 
 Three runs on the deduped 0.67MB corpus (vocab 104), each to its own `--out-dir`, 5000 steps,
 batch 64, lr 3e-4, block_size 256, on the 4080 (bf16 autocast, minutes per run):
@@ -186,13 +198,13 @@ batch 64, lr 3e-4, block_size 256, on the 4080 (bf16 autocast, minutes per run):
 memorizes harder. Both more dropout and less capacity remove the divergence; the smaller model
 reaches the lowest val at the lowest cost.
 
-### TICKET-10: scale & ablate - does a bigger model help?
+### Scale & context ablation - does a bigger model help?
 
-Short answer: **no, not on this data.** TICKET-09 suspected the ~1.58 val floor was set by the
-0.67MB corpus, not the model size. TICKET-10 tests that head-on: hold the corpus and the training
+Short answer: **no, not on this data.** The first runs suspected the ~1.58 val floor was set by
+the 0.67MB corpus, not the model size. The ablation tests that head-on: hold the corpus and the training
 budget fixed (`--max-iters 5000 --eval-interval 250 --dropout 0.2 --lr 3e-4 --batch-size 64`) and
 sweep model size and context length, each to its own `--out-dir`. The loop was first instrumented
-(TICKET-10.0) to print **throughput and peak VRAM**, so the same four runs also answer "where does
+to print **throughput and peak VRAM**, so the same four runs also answer "where does
 the 4080 cap out?"
 
 ```sh
@@ -304,7 +316,7 @@ original post-norm design.
   duplicated verse hurts two ways: copies that straddle the cut leak train→val (val then
   measures memorized recall and looks artificially good), and copies that don't still inflate
   the corpus and let the model memorize repeated verses inside the training split. Removing the
-  cross-file duplicates (TICKET-09.0) clears both confounds, so the train-vs-val gap reflects
+  cross-file duplicates (the dedup pass) clears both confounds, so the train-vs-val gap reflects
   real generalization - the divergence above is honest, not bookkeeping.
 
 **Temperature and top-k shape sampling, not the model.** Generation draws each character from
