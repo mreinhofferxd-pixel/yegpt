@@ -26,7 +26,7 @@ Ground rules for every task (from the launch spec):
 
 ## Unit 1: CI gate (test suite already exists: 106 tests + ruff + mypy, all green, ~41s)
 
-- [ ] Add `.github/workflows/ci.yml` running the gate on push + PR: Python 3.12, install
+- [x] Add `.github/workflows/ci.yml` running the gate on push + PR: Python 3.12, install
       CPU-only torch from the `https://download.pytorch.org/whl/cpu` index (never the cu121
       wheel; keeps the job well under 5 min), `pip install -e .[dev]`, then
       `python -m ruff check .`, `python -m mypy`, `python -m pytest -q`. Acceptance: the
