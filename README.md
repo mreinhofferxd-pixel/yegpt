@@ -67,12 +67,23 @@ normalize + deduplicate ─> character tokenizer ─> train/validation split
 
 Requires Python 3.11 or 3.12. Sampling works on CPU; CUDA is only needed for training.
 
-```bash
-python -m venv .venv
+On Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
 python -m pip install -e ".[dev]"
 ```
 
-Download the released fp16 checkpoint and generate from a prompt:
+On macOS or Linux:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+Download `yegpt-small-fp16.pt` from the [v0.1.0 release](https://github.com/mreinhofferxd-pixel/yegpt/releases/tag/v0.1.0), or use GitHub CLI:
 
 ```bash
 gh release download v0.1.0 --pattern "yegpt-small-fp16.pt"
